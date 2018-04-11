@@ -1,0 +1,17 @@
+{
+  "name": "camera_bridge",
+  "version": "1.0.0",
+  "description": "Camera bridge API for MIPC camera to ZoneMinder",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.18.0",
+    "crypto-js": "^3.1.9-1",
+    "jsonic": "^0.3.0",
+    "q": "^1.5.1"
+  }
+}
