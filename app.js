@@ -18,7 +18,7 @@ const MMQ_CREATE = "/ccm/mmq_create.js?hfrom_handle=%FROM_HANDLE%&dtimeout=30000
 const MMQ_PICK = "/ccm/mmq_pick.js?hfrom_handle=%FROM_HANDLE%&hqid=%QID%&dqid=%QID%&dtimeout=300000";
 const SUBSCRIBE = "/ccm/ccm_subscribe.js?hfrom_handle=%FROM_HANDLE%&hqid=%QID%&dsess=1&dsess_nid=%NID%";
 const INFO = "/ccm/ccm_info_get.js?hfrom_handle=639692&";
-
+const STREAM = "/ccm/ccm_play.js?hfrom_handle=%FROM_HANDLE%&hqid=%QID%&dsess=1&dsess_nid=%NID%&dsess_sn=%USERNAME%&dsetup=1&dsetup_stream=RTP%5fUnicast&dsetup_trans=1&dsetup_trans_proto=rtsp&dtoken=p2";
 var md5_ex = {
   hex: function (val) { 
     return crypto.createHash('md5').update(val,'latin1','latin1').digest('hex');
@@ -54,6 +54,24 @@ function subscribe(resp, sid, qid ,shared_key) {
   console.log("qid="+qid+" shared_key="+shared_key);
   var nid = mcodec.nid(resp.to_handle, sid, shared_key, 0, null, null, md5_ex, "hex");
   const url = IP_CAMERA + SUBSCRIBE.replace("%FROM_HANDLE%",resp.to_handle).replace("%QID%",qid).replace("%NID%", nid);
+  console.log(url);
+  var deferred = Q.defer();
+  axios
+    .get(url)
+    .then(response => {
+      const resp = parseMessage(response.data);
+      console.log(resp);
+      deferred.resolve(resp);
+  }).catch(error => {
+    deferred.reject(error);
+  });  
+  return deferred.promise;
+}
+
+function stream(resp, user, sid, qid ,shared_key) {
+  resp.to_handle++;
+  var nid = mcodec.nid(resp.to_handle, sid, shared_key, 0, null, null, md5_ex, "hex");
+  const url = IP_CAMERA + STREAM.replace("%FROM_HANDLE%",resp.to_handle).replace("%QID%",qid).replace("%NID%", nid).replace("%USERNAME%",user);
   console.log(url);
   var deferred = Q.defer();
   axios
@@ -234,9 +252,12 @@ getInfo().then( response => {
   return createImageConf(subscribeResponse, sid, username, shared_key);
 }).then( imageResponse => {
   from_handle = imageResponse.to_handle;
-  return createSnapshot(imageResponse, sid, username, shared_key);
-}).then( snapshotResponse => {
-  logout(from_handle, qid, sid, username, shared_key);
-}).catch( error => {
+  return stream(imageResponse, username, sid, qid ,shared_key)
+  // return createSnapshot(imageResponse, sid, username, shared_key);
+})
+//.then( snapshotResponse => {
+//   logout(from_handle, qid, sid, username, shared_key);
+// })
+.catch( error => {
    console.log(error);
 });
