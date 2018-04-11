@@ -21,7 +21,7 @@ const INFO = "/ccm/ccm_info_get.js?hfrom_handle=639692&";
 
 var md5_ex = {
   hex: function (val) { 
-    return crypto.createHash('md5').update(val).digest('hex');
+    return crypto.createHash('md5').update(val,'latin1','latin1').digest('hex');
   }
 };
 
@@ -53,7 +53,7 @@ function subscribe(resp, sid, qid ,shared_key) {
   resp.to_handle++;
   console.log("qid="+qid+" shared_key="+shared_key);
   var nid = mcodec.nid(resp.to_handle, sid, shared_key, 0, null, null, md5_ex, "hex");
-  const url = IP_CAMERA + SUBSCRIBE.replace("%FROM_HANDLE%",resp.to_handle).replace("%QID%",qid).replace("%NID%", nid.replace(new RegExp('\\.', 'g'),"%"));
+  const url = IP_CAMERA + SUBSCRIBE.replace("%FROM_HANDLE%",resp.to_handle).replace("%QID%",qid).replace("%NID%", nid);
   console.log(url);
   var deferred = Q.defer();
   axios
@@ -103,10 +103,10 @@ function pickMmq(resp, qid) {
   return deferred.promise;
 }
 
-function logout(resp, sid, shared_key) {
-  resp.to_handle++;
-  var nid = mcodec.nid(resp.to_handle, sid, shared_key, 2, null, null, md5_ex, "hex");
-  const url = IP_CAMERA + LOGOUT.replace("%FROM_HANDLE%",resp.to_handle).replace("%QID%",qid).replace("%NID%", nid.replace(new RegExp('\\.', 'g'),"%"));
+function logout(from_handle, qid, sid, shared_key) {
+  from_handle++;
+  var nid = mcodec.nid(from_handle, sid, shared_key, 0, null, null, md5_ex, "hex");
+  const url = IP_CAMERA + LOGOUT.replace("%FROM_HANDLE%",from_handle).replace("%QID%",qid).replace("%NID%", nid.replace(new RegExp('\\.', 'g'),"%"));
   console.log(url);
   var deferred = Q.defer();
   axios
@@ -126,7 +126,7 @@ function createImageConf(resp, sid, user, shared_key) {
   resp.to_handle++;
   console.log("shared_key="+shared_key+" sid="+sid);
   var nid = mcodec.nid(resp.to_handle, sid, shared_key, 0, null, null, md5_ex, "hex");
-  const imgUrl = IP_CAMERA + IMG_GET.replace("%FROM_HANDLE%",resp.to_handle).replace("%NID%", nid.replace(new RegExp('\\.', 'g'),"%")).replace("%USERNAME%",user);
+  const imgUrl = IP_CAMERA + IMG_GET.replace("%FROM_HANDLE%",resp.to_handle).replace("%NID%", nid).replace("%USERNAME%",user);
   console.log(imgUrl);
   var deferred = Q.defer();
   axios
@@ -145,15 +145,15 @@ function createImageConf(resp, sid, user, shared_key) {
 function createSnapshot(resp, sid, user, shared_key) {
   resp.to_handle++;
   var nid = mcodec.nid(resp.to_handle, sid, shared_key, 0, null, null, md5_ex, "hex");
-  const imgUrl = IP_CAMERA + PIC_GET.replace("%NID%", nid.replace(new RegExp('\\.', 'g'),"%")).replace("%USERNAME%",user);
+  const imgUrl = IP_CAMERA + PIC_GET.replace("%NID%", nid).replace("%USERNAME%",user);
   console.log(imgUrl);
   var deferred = Q.defer();
   axios
-    .get(imgUrl, { responseType: 'blob', headers: {
+    .get(imgUrl, { responseType: 'arraybuffer', headers: {
       'Accept': 'image/jpeg',
     }})
     .then(response => {
-      fs.writeFile("test.txt", response.data,  "binary",function(err) {
+      fs.writeFile("test.jpg", response.data,  "binary",function(err) {
           if(err) {
               console.log(err);
           } else {
@@ -195,7 +195,7 @@ function login(obj, user, password) {
         iv: d,
         padding: CryptoJS.pad.NoPadding
     }).ciphertext.toString();
-  const loginUrl = IP_CAMERA + LOGIN.replace("%FROM_HANDLE%",obj.to_handle).replace("%USERNAME%",user).replace("%LID%",obj.lid).replace("%NID%", nid.replace(new RegExp('\\.', 'g'),"%")).replace("%PASSWORD%",enc_pass);
+  const loginUrl = IP_CAMERA + LOGIN.replace("%FROM_HANDLE%",obj.to_handle).replace("%USERNAME%",user).replace("%LID%",obj.lid).replace("%NID%", nid).replace("%PASSWORD%",enc_pass);
   axios
     .get(loginUrl)
     .then(response => {
@@ -210,11 +210,12 @@ function login(obj, user, password) {
 }
 
 
-let shared_key = null;
-let sid = 0;
-let lid = 0;
-let qid = 0;
-let username = "";
+var shared_key = null;
+var sid = 0;
+var lid = 0;
+var qid = 0;
+var username = "";
+var from_handle = 0;
 // Start program
 getInfo().then( response => {
   username = response.data.sn;
@@ -231,8 +232,11 @@ getInfo().then( response => {
   return subscribe(mmqResponse, sid, mmqResponse.data.qid, shared_key);
 }).then( subscribeResponse => {
   return createImageConf(subscribeResponse, sid, username, shared_key);
-}).then( response => {
-  logout(response, sid, username, shared_key);
+}).then( imageResponse => {
+  from_handle = imageResponse.to_handle;
+  return createSnapshot(imageResponse, sid, username, shared_key);
+}).then( snapshotResponse => {
+  logout(from_handle, qid, sid, username, shared_key);
 }).catch( error => {
    console.log(error);
 });
