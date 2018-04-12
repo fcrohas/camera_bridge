@@ -14,7 +14,9 @@ class Camera {
       this.GENERATE_DH = "/ccm/cacs_dh_req.js?hfrom_handle=%FROM_HANDLE%&dbnum_prime="+this.mdh.prime+"&droot_num="+this.mdh.g+"&dkey_a2b=%KEY_2AB%&dtid=0";
       this.LOGIN = "/ccm/cacs_login_req.js?hfrom_handle=%FROM_HANDLE%&dlid=%LID%&dnid=%NID%&duser=%USERNAME%&dpass=%PASSWORD%&dsession_req=1&dparam__x_countz_=1&dparam=1&dparam_name=spv&dparam_value=v1";
       this.LOGOUT = "/ccm/cacs_logout_req.js?hfrom_handle=%FROM_HANDLE%&hqid=%QID%&dnid=%NID%";
-      this.PIC_GET = "/ccm/ccm_pic_get.jpg?hfrom_handle=887330&dsess=1&dsess_nid=%NID%&dsess_sn=%USERNAME%&dtoken=p0_xxxxxxxxxx";
+      this.PIC_GET = "/ccm/ccm_pic_get.jpg?hfrom_handle=887330&dsess=1&dsess_nid=%NID%&dsess_sn=%USERNAME%&dtoken=p1_xxxxxxxxxx";
+      this.SNAPSHOT = "/ccm/ccm_snapshot.js?hfrom_handle=%FROM_HANDLE%&dsess=1&dsess_nid=%NID%&dsess_sn=%USERNAME%&dtoken=p1";
+      this.SNAPSHOT_GET = "/ccm/ccm_pic_get.js?hfrom_handle=%FROM_HANDLE%&dsess=1&dsess_nid=%NID%&dsess_sn=%USERNAME%&dtoken=%TOKEN%";
       this.IMG_GET = "/ccm/ccm_img_get.js?hfrom_handle=%FROM_HANDLE%&dsess=1&dsess_nid=%NID%&dsess_sn=%USERNAME%&dtoken=vs0";
       this.MMQ_CREATE = "/ccm/mmq_create.js?hfrom_handle=%FROM_HANDLE%&dtimeout=30000";
       this.MMQ_PICK = "/ccm/mmq_pick.js?hfrom_handle=%FROM_HANDLE%&hqid=%QID%&dqid=%QID%&dtimeout=300000";
@@ -99,9 +101,17 @@ class Camera {
           nid = this.generateNID(this.id.sid, 0);
           url += this.IMG_GET.replace("%FROM_HANDLE%",this.handle).replace("%NID%", nid).replace("%USERNAME%",this.info.sn);
           break;
-        case "CREATE_SNAPSHOT":
+        case "CREATE_PIC":
           nid = this.generateNID(this.id.sid, 0);
           url += this.PIC_GET.replace("%NID%", nid).replace("%USERNAME%",this.info.sn);
+          break;
+        case "CREATE_SNAPSHOT":
+          nid = this.generateNID(this.id.sid, 0);
+          url += this.SNAPSHOT.replace("%FROM_HANDLE%",this.handle).replace("%NID%", nid).replace("%USERNAME%",this.info.sn);
+          break;
+        case "GET_SNAPSHOT":
+          nid = this.generateNID(this.id.sid, 0);
+          url += this.SNAPSHOT_GET.replace("%FROM_HANDLE%",this.handle).replace("%NID%", nid).replace("%USERNAME%",this.info.sn);
           break;
       }
       console.log(url);
@@ -216,22 +226,54 @@ class Camera {
     }
 
 
-    createSnapshot() {
-      const imgUrl = this.generateUrl("CREATE_SNAPSHOT");
+    getPicture() {
+      const imgUrl = this.generateUrl("CREATE_PIC");
       const deferred = this.Q.defer();
       this.axios
         .get(imgUrl, { responseType: 'arraybuffer', headers: {
           'Accept': 'image/jpeg',
         }})
         .then(response => {
-/*          this.fs.writeFile("test.jpg", response.data,  "binary",function(err) {
+          deferred.resolve(response.data);
+      }).catch(error => {
+        deferred.reject(error);
+      });  
+      return deferred.promise;
+    }
+
+    createSnapshot() {
+      const imgUrl = this.generateUrl("CREATE_SNAPSHOT");
+      const deferred = this.Q.defer();
+      this.axios
+        .get(imgUrl)
+        .then(response => {
+          const resp = this.parseMessage(response.data);
+          console.log(resp);          
+          this.getSnapshot(resp.data.token).then(result => {
+            deferred.resolve(result);            
+          }).catch(error => {
+            deferred.reject(error);
+          });
+      }).catch(error => {
+        deferred.reject(error);
+      });  
+      return deferred.promise;
+    }
+
+    getSnapshot(token) {
+      const imgUrl = this.generateUrl("GET_SNAPSHOT").replace("%TOKEN%",token);
+      const deferred = this.Q.defer();
+      this.axios
+        .get(imgUrl)
+        .then(response => {
+          const obj = this.parseMessage(response.data);
+          this.fs.writeFile("test.jpg", Buffer.from(obj.data.frame, 'base64'),  "binary",function(err) {
               if(err) {
                   console.log(err);
               } else {
                   console.log("The file was saved!");
               }
           });
-*/
           deferred.resolve(response.data);
       }).catch(error => {
         deferred.reject(error);

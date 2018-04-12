@@ -13,7 +13,7 @@ app.get('/live', function (req, res) {
     return;
   } else {
     camera.createSnapshot().then( response => {
-       res.writeHead(200, {'Content-Type': 'image/jpeg' });
+       res.setHeader('Content-Type', 'image/jpeg' );
        res.end(response, 'binary');
     }).catch(error => {
       res.send(error);
