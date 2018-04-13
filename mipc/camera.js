@@ -18,7 +18,7 @@ class Camera {
       this.SNAPSHOT = "/ccm/ccm_snapshot.js?hfrom_handle=%FROM_HANDLE%&dsess=1&dsess_nid=%NID%&dsess_sn=%USERNAME%&dtoken=p1";
       this.SNAPSHOT_GET = "/ccm/ccm_pic_get.js?hfrom_handle=%FROM_HANDLE%&dsess=1&dsess_nid=%NID%&dsess_sn=%USERNAME%&dtoken=%TOKEN%";
       this.IMG_GET = "/ccm/ccm_img_get.js?hfrom_handle=%FROM_HANDLE%&dsess=1&dsess_nid=%NID%&dsess_sn=%USERNAME%&dtoken=vs0";
-      this.MMQ_CREATE = "/ccm/mmq_create.js?hfrom_handle=%FROM_HANDLE%&dtimeout=30000";
+      this.MMQ_CREATE = "/ccm/mmq_create.js?hfrom_handle=%FROM_HANDLE%&dtimeout=60000";
       this.MMQ_PICK = "/ccm/mmq_pick.js?hfrom_handle=%FROM_HANDLE%&hqid=%QID%&dqid=%QID%&dtimeout=300000";
       this.SUBSCRIBE = "/ccm/ccm_subscribe.js?hfrom_handle=%FROM_HANDLE%&hqid=%QID%&dsess=1&dsess_nid=%NID%";
       this.INFO = "/ccm/ccm_info_get.js?hfrom_handle=639692&";
@@ -40,6 +40,7 @@ class Camera {
         lid : '0x0'
       };
       this.isConnected = false;
+      this.conf = {};
     }
 
     isConnected() {
@@ -118,111 +119,62 @@ class Camera {
       return url;
     }
 
-    getInfo() {
-      if (this.info == null) {
-        const url = this.generateUrl("INFO");
+    callCameraJson(url, callback) {
         const deferred = this.Q.defer();
         this.axios
           .get(url)
           .then(response => {
             const resp = this.parseMessage(response.data);
-            this.info = resp.data;
+            if (callback) {
+              callback(resp);
+            }
             deferred.resolve(resp);
         }).catch(error => {
           deferred.reject(error);
         });  
         return deferred.promise;
+    }
+
+    getInfo() {
+      if (this.info == null) {
+        return this.callCameraJson(this.generateUrl("INFO"), (resp => {
+          this.info = resp.data;
+        }));
       } else {
         return this.info;
       }
     }
 
     subscribe() {
-      const url = this.generateUrl("SUBSCRIBE");
-      const deferred = this.Q.defer();
-      this.axios
-        .get(url)
-        .then(response => {
-          const resp = this.parseMessage(response.data);
-          deferred.resolve(resp);
-      }).catch(error => {
-        deferred.reject(error);
-      });  
-      return deferred.promise;
+      return this.callCameraJson(this.generateUrl("SUBSCRIBE"));
     }
 
     stream() {
-      const url = this.generateUrl("STREAM");
-      const deferred = this.Q.defer();
-      this.axios
-        .get(url)
-        .then(response => {
-          const resp = this.parseMessage(response.data);
-          deferred.resolve(resp);
-      }).catch(error => {
-        deferred.reject(error);
-      });  
-      return deferred.promise;
+      return this.callCameraJson(this.generateUrl("STREAM"));
     }
 
 
     createMmq() {
-      const url = this.generateUrl("MMQ_CREATE");
-      const deferred = this.Q.defer();
-      this.axios
-        .get(url)
-        .then(response => {
-          const resp = this.parseMessage(response.data);
-          this.id.qid = resp.data.qid;
-          deferred.resolve(resp);
-      }).catch(error => {
-        deferred.reject(error);
-      });  
-      return deferred.promise;
+      return this.callCameraJson(this.generateUrl("MMQ_CREATE"), (resp) => {
+        this.id.qid = resp.data.qid;
+      });
     }
 
     pickMmq() {
-      const url = this.generateUrl("MMQ_PICK");
-      const deferred = Q.defer();
-      this.axios
-        .get(url)
-        .then(response => {
-          const resp = this.parseMessage(response.data);
-          deferred.resolve(resp);
-      }).catch(error => {
-        deferred.reject(error);
-      });  
-      return deferred.promise;
+      return this.callCameraJson(this.generateUrl("MMQ_PICK"));
     }
 
     logout() {
-      const url = this.generateUrl("LOGOUT");
-      const deferred = this.Q.defer();
-      this.axios
-        .get(url)
-        .then(response => {
-          const resp = this.parseMessage(response.data);
-          this.isConnected = true;
-          deferred.resolve(resp);
-      }).catch(error => {
-        deferred.reject(error);
-      });  
-      return deferred.promise;
+      return this.callCameraJson(this.generateUrl("LOGOUT"), () => {
+        this.isConnected = true;
+      });
     }
 
 
     getImageConf() {
-      const imgUrl = this.generateUrl("GET_IMG_CONF");
-      const deferred = this.Q.defer();
-      this.axios
-        .get(imgUrl)
-        .then(response => {
-          const resp = this.parseMessage(response.data);
-          deferred.resolve(resp);
-      }).catch(error => {
-        deferred.reject(error);
-      });  
-      return deferred.promise;
+      return this.callCameraJson(this.generateUrl("GET_IMG_CONF"), (resp) => {
+        this.conf.img = resp.data;
+      });
     }
 
 
@@ -282,43 +234,27 @@ class Camera {
     }
 
     generateSharedKey() {
-      const deferred = this.Q.defer();
-      this.axios
-        .get(this.generateUrl("GENERATE_DH"))
-        .then(response => {
-          const obj = this.parseMessage(response.data);
-          this.shared_key = this.mdh.gen_shared_secret(this.privateKey,obj.data.key_b2a);
-          this.id.lid = obj.data.lid;
-          deferred.resolve(obj);
-      }).catch(error => {
-          deferred.reject(error);
-      });
-      return deferred.promise;
+      return this.callCameraJson(this.generateUrl("GENERATE_DH"), (resp) => {
+          this.shared_key = this.mdh.gen_shared_secret(this.privateKey,resp.data.key_b2a);
+          this.id.lid = resp.data.lid;
+        });
     }
 
     login(password) {
-      const deferred = this.Q.defer();
+      // Prepare to encode password
       const md5_pass = this.CryptoJS.MD5(password); 
       const md5_key = this.CryptoJS.MD5(this.shared_key);
       const iv_init = this.CryptoJS.enc.Hex.parse("0000000000000000");
-
+      // generate crypto password
       const enc_pass = this.CryptoJS.DES.encrypt(md5_pass, md5_key, {
             iv: iv_init,
             padding: this.CryptoJS.pad.NoPadding
         }).ciphertext.toString();
       const loginUrl = this.generateUrl("LOGIN").replace("%PASSWORD%",enc_pass);
-      this.axios
-        .get(loginUrl)
-        .then(response => {
-          const resp = this.parseMessage(response.data);
+      return this.callCameraJson(loginUrl, (resp) => {
           this.id.sid = resp.data.sid;
           this.isConnected = true;
-          deferred.resolve(resp);
-        })
-        .catch(error => {
-          deferred.reject(error);
-        });  
-      return deferred.promise;
+      });
     }
 }
 

@@ -12,7 +12,7 @@ app.get('/live', function (req, res) {
     res.send('No camera defined');
     return;
   } else {
-    camera.createSnapshot().then( response => {
+    camera.getPicture().then( response => {
        res.setHeader('Content-Type', 'image/jpeg' );
        res.end(response, 'binary');
     }).catch(error => {
