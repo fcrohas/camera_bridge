@@ -1,0 +1,8 @@
+{
+  "cameraIP": "<CAMERA_IP>",
+  "proxyPort": "7010",
+  "url": "http://<CAMERA_IP>:80",
+  "camid": "<CAMERA_NAME>",
+  "password": "<CAMERA_PWD>",
+  "profile": "p1"
+}
