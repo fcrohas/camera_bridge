@@ -31,7 +31,7 @@ p3|160x90
  Connection method is TCP
  And in source URL :
 
-	rtmp://<PROXY_IP>:7010/live/<CAMERA_NAME>_<CAMERA_PROFILE>_XXXXXXXXXXXX
+	rtmp://<PROXY_IP>:<PROXY_PORT>/live/<CAMERA_NAME>_<CAMERA_PROFILE>_XXXXXXXXXXXX
 
  CAMERA_PROFILE should be the same setup in `config.json` like follow :
 

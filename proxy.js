@@ -17,13 +17,17 @@ const proxy = net.createServer(function (socket) {
 
     // Create a new connection to the TCP server
     client = net.connect(config.proxyPort,config.cameraIP);
+    client.on('error', function(ex) {
+      console.log('Connection to camera error ', ex);
+      socket.destroy('Camera not reachable.');
+    });
 
     // 2-way pipe between client and TCP server
     socket.pipe(filterAuthenticator).pipe(client).pipe(socket);
 
     socket.on('close', function () {
         console.log('Client disconnected from proxy');
-	mipc.reInit()
+        mipc.reInit()
     });
 
     socket.on('error', function (err) {
