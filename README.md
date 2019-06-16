@@ -5,7 +5,7 @@
 Parameter|Description
 ---------|-----------
 cameraIP|The camera ip address on local area network
-proxyPort|The RTSP port used on camera that is also mirrored on proxy
+proxyPort|The RTSP port used on camera (Normal value is 7010) that is also mirrored on proxy
 url|The camera http url to website camera ( http://<CAMERA_IP>:80 )
 camid|The camera name seen on webinterface as login
 password|The password on the camera login form
