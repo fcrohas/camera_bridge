@@ -1,4 +1,5 @@
 const { Transform } = require('stream')
+const replace = require('buffer-replace')
 
 class FilterAuth extends Transform {
 
@@ -11,15 +12,7 @@ class FilterAuth extends Transform {
   }
 
   _transform(chunk, encoding, next) {
-    const baseIdx = chunk.indexOf(this.mipcAuth.baseToken)
-    if (baseIdx != -1) {
-      for (let i = 0; i < this.mipcAuth.newToken.length; i++) {
-        chunk[baseIdx + i] = this.mipcAuth.newToken[i]
-      }
-      if (chunk.indexOf(this.mipcAuth.newToken) != -1) {
-         console.log('Token found and replaced');
-      }
-    }
+    chunk = replace(chunk, this.mipcAuth.baseToken, this.mipcAuth.newToken)
     return next(null, chunk)
   }
 
