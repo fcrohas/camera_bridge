@@ -16,6 +16,7 @@
     "phantom": "^6.0.3",
     "request": "^2.85.0",
     "sync": "^0.2.5",
-    "zip-folder": "^1.0.0"
+    "zip-folder": "^1.0.0",
+    "buffer-replace": "^1.0.0"
   }
 }
